@@ -46,6 +46,11 @@
     --transition-fast: 150ms ease;
     --transition-normal: 200ms ease;
     --transition-slow: 300ms ease;
+    /* Pop vairables */
+    --pop-timing: 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --pop-start-state: scale(0.8) translateY(10px);/* Slightly shrinks and moves down to opening */
+    --pop-end-state: scale(0.9) translateY(-10px);/* Slightly shrinks and moves up to closing */
+    --pop-opacity-start: 0;
 }
 
 /* Dark Mode */
@@ -868,19 +873,26 @@ body.dark-mode .sort-btn.active {
 
 /* Modal */
 .modal {
-    display: none;
     position: fixed;
     inset: 0;
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 50;
+    display: flex; /* Always flex so it can animate */
     align-items: center;
     justify-content: center;
     padding: 1rem;
     backdrop-filter: blur(4px);
+    
+    /* Animation Control */
+    opacity: 0;
+    visibility: hidden; 
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
 }
 
+/* When active, show the overlay */
 .modal.active {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
 }
 
 .modal-content {
@@ -890,7 +902,22 @@ body.dark-mode .sort-btn.active {
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+    /* Your Pop Variables */
+    opacity: var(--pop-opacity-start);
+    transform: var(--pop-start-state);
+    transition: transform var(--pop-timing), opacity var(--pop-timing);
+}
+.modal.active .modal-content {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+/* Modal Exiting (Uses your end-state) */
+.modal:not(.active) .modal-content {
+    transform: var(--pop-end-state);
+    opacity: 0;
 }
 
 .modal-header {

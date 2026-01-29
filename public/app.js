@@ -86,6 +86,9 @@ const cancelPostBtn = document.getElementById('cancelPostBtn');
 const newPostForm = document.getElementById('newPostForm');
 const postListView = document.getElementById('postListView');
 const postDetailView = document.getElementById('postDetailView');
+const signupBtn = document.getElementById('userProfileBtn'); // Link this to your user icon!
+const closeSignupBtn = document.getElementById('closeSignupBtn');
+const cancelSignupBtn = document.getElementById('cancelSignupBtn');
 
 
 
@@ -94,13 +97,22 @@ function attachEventListeners() {
     darkModeBtn.addEventListener('click', toggleDarkMode);
     mobileMenuBtn.addEventListener('click', toggleMobileMenu);
     mobileOverlay.addEventListener('click', closeMobileMenu);
+    
+    // New Post Modal
     newPostBtn.addEventListener('click', openNewPostModal);
     closeModalBtn.addEventListener('click', closeNewPostModal);
     cancelPostBtn.addEventListener('click', closeNewPostModal);
-    newPostModal.addEventListener('click', (e) => {
+    newPostModal.addEventListener('click', (e) => { 
         if (e.target === newPostModal) closeNewPostModal();
-    });
+ });
     newPostForm.addEventListener('submit', handleNewPost);
+    signupBtn.addEventListener('click', openSignupModal);
+    closeSignupBtn.addEventListener('click', closeSignupModal);
+    cancelSignupBtn.addEventListener('click', closeSignupModal);
+    signupModal.addEventListener('click', (e) => { 
+        if (e.target === signupModal) closeSignupModal(); 
+    });
+    signupForm.addEventListener('submit', handleSignup);
 }
 
 // Dark Mode
@@ -309,15 +321,23 @@ async function handleReply(e, questionId) {
 // Modal Functions
 function openNewPostModal() {
     newPostModal.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';// prevent background scroll
 }
 
 function closeNewPostModal() {
     newPostModal.classList.remove('active');
-    document.body.style.overflow = '';
-    newPostForm.reset();
+    document.body.style.overflow = '';// restore scroll
+    setTimeout(() => newPostForm.reset(), 700); // reset form after modal close animation
 }
-
+function openSignupModal() {
+    signupModal.classList.add('active');
+    document.body.style.overflow = 'hidden';// prevent background scroll
+}
+function closeSignupModal() {
+    signupModal.classList.remove('active');
+    document.body.style.overflow = '';// restore scroll
+    setTimeout(() => signupForm.reset(), 700); // reset form after modal close animation
+}
 // Handle New Post
 async function handleNewPost(e) {
     e.preventDefault();
@@ -344,7 +364,25 @@ async function handleNewPost(e) {
         renderPosts();
     }
 }
+// 3. Handle Database Submission
+async function handleSignup(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('signupUsername').value;
+    const email = document.getElementById('signupEmail').value;
 
+    const newUser = {
+        username,
+        email,
+        interaction_score: 0
+    };
+
+    const result = await apiPost('/users', newUser);
+    if (result) {
+        alert("Account created successfully!");
+        closeSignupModal();
+    }
+}
 // Make functions globally available
 window.selectCategory = selectCategory;
 window.showPostDetail = showPostDetail;
