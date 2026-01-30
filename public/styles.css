@@ -877,6 +877,7 @@ body.dark-mode .sort-btn.active {
     justify-content: center;
     padding: 1rem;
     backdrop-filter: blur(4px);
+
 }
 
 .modal.active {
@@ -922,6 +923,81 @@ body.dark-mode .sort-btn.active {
 
 .modal-close:hover {
     background-color: var(--bg-input);
+}
+
+/* sign in modal */
+.auth-modal-content h2 {
+    margin: 0 0 0.5rem;
+    text-align: center;
+}
+
+.auth-modal-content p#authSubtitle {
+    text-align: center;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: inherit;
+    font-size: 1rem;
+}
+
+.btn.btn-primary {
+    width: 100%;
+    padding: 0.9rem;
+    background: var(--primary-color, #2563eb);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn.btn-primary:hover {
+    background: #1e40af;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 1.2rem;
+}
+
+.auth-switch button {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.auth-message {
+    margin-top: 1rem;
+    text-align: center;
+    min-height: 1.2rem;
+}
+
+.auth-message.error {
+    color: #ef4444;
+}
+
+.auth-message.success {
+    color: #10b981;
 }
 
 /* Form Styles */

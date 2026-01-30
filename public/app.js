@@ -1,5 +1,14 @@
 
-// Application State
+
+// Supabase Setup – put this at the very top
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+export const supabase = createClient(
+    'https://xlrnaxmjykcldherfywy.supabase.co', 
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhscm5heG1qeWtjbGRoZXJmeXd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTAzNTcsImV4cCI6MjA4NTMyNjM1N30.00eWFylerK7u76JiRc6wecMf_CpeAV2m2YqSDPR_170'
+);
+
+// App State
 const state = {
     posts: [],
     categoryCounts: { all: 0 },
@@ -7,54 +16,20 @@ const state = {
     selectedPost: null,
     isDarkMode: false,
     isMobileMenuOpen: false,
-    currentSort: 'recent'   // default is recent
+    currentSort: 'recent',
+    searchQuery: '',
+    currentUser: null           // we'll add login later
 };
 
-// state management
-const API_BASE = '';  // empty = same origin (recommended)
-// If testing on different port → 'http://localhost:3000' (but use '' in production)
-
-async function apiGet(endpoint) {
-    try {
-        const res = await fetch(API_BASE + endpoint);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-    } catch (err) {
-        console.error("API error:", err);
-        alert("Could not load data from server. Check console.");
-        return null;
-    }
-}
-
-async function apiPost(endpoint, data) {
-    try {
-        const res = await fetch(API_BASE + endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-    } catch (err) {
-        console.error("API post error:", err);
-        alert("Failed to save. Check console.");
-        return null;
-    }
-}
-
+//  4. Categories (static metadata)
 const categories = [
-    { id: "all", name: "All Topics", icon: "users" },
-    { id: "academics", name: "Academics", icon: "book",},
-    { id: "programming", name: "Programming", icon: "code"},
-    { id: "projects", name: "Projects", icon: "lightbulb"},
-    { id: "career", name: "Career", icon: "briefcase"},
-    { id: "general", name: "General", icon: "coffee"}
+    { id: "all",        name: "All Topics",   icon: "users"   },
+    { id: "academics",  name: "Academics",    icon: "book"    },
+    { id: "programming",name: "Programming",  icon: "code"    },
+    { id: "projects",   name: "Projects",     icon: "lightbulb"},
+    { id: "career",     name: "Career",       icon: "briefcase"},
+    { id: "general",    name: "General",      icon: "coffee"   }
 ];
-
-
-
-
-const mockReplies = []
 
 // ICON
 const icons = {
@@ -101,6 +76,7 @@ function attachEventListeners() {
         if (e.target === newPostModal) closeNewPostModal();
     });
     newPostForm.addEventListener('submit', handleNewPost);
+
 }
 
 // Dark Mode
@@ -123,30 +99,26 @@ function closeMobileMenu() {
     mobileOverlay.classList.remove('active');
 }
 
-function updateCategoryCountsFromPosts() {
-  const counts = { all: state.posts.length };
-  
-  state.posts.forEach(post => {
-    const cat = post.category;
-    counts[cat] = (counts[cat] || 0) + 1;
-  });
-  
-  state.categoryCounts = counts;
-}
 
+// Quick category counts from loaded data
+function updateCategoryCounts() {
+    const counts = { all: state.posts.length };
+    state.posts.forEach(p => {
+        counts[p.category] = (counts[p.category] || 0) + 1;
+    });
+    state.categoryCounts = counts;
+}
 
 // Render Categories on sidebar :)
 function renderCategories() {
-    categoriesNav.innerHTML = categories.map(category => {
-        // Use dynamic count, fallback to 0 if category doesn't exist yet
-        const count = state.categoryCounts[category.id] ?? 0;
-        
+    categoriesNav.innerHTML = categories.map(cat => {
+        const count = state.categoryCounts[cat.id] ?? 0;
         return `
-            <button class="category-btn ${state.selectedCategory === category.id ? 'active' : ''}" 
-                    onclick="selectCategory('${category.id}')">
+            <button class="category-btn ${state.selectedCategory === cat.id ? 'active' : ''}" 
+                    onclick="selectCategory('${cat.id}')">
                 <div class="category-left">
-                    <div class="category-icon">${icons[category.icon]}</div>
-                    <span>${category.name}</span>
+                    <div class="category-icon">${icons[cat.icon]}</div>
+                    <span>${cat.name}</span>
                 </div>
                 <span class="category-count">${count}</span>
             </button>
@@ -164,45 +136,49 @@ function selectCategory(categoryId) {
 
 // Render Posts
 function renderPosts() {
-    const filteredPosts = state.selectedCategory === 'all' 
-        ? state.posts 
-        : state.posts.filter(post => post.category === state.selectedCategory);
-    
-    // Update header
-    const categoryName = categories.find(c => c.id === state.selectedCategory)?.name || 'All Topics';
-    categoryTitle.textContent = `${categoryName}${state.selectedCategory !== 'all' ? ' Discussions' : ''}`;
-    postCount.textContent = `${filteredPosts.length} posts`;
-    
-    // Render posts
-    postsList.innerHTML = filteredPosts.map(post => `
+    let filtered = state.posts;
+
+    if (state.searchQuery?.trim()) {
+        const q = state.searchQuery.toLowerCase().trim();
+        filtered = filtered.filter(p =>
+            p.title.toLowerCase().includes(q) ||
+            p.content.toLowerCase().includes(q) ||
+            p.author.name.toLowerCase().includes(q) ||
+            p.tags.some(t => t.toLowerCase().includes(q))
+        );
+    }
+
+    if (state.selectedCategory !== 'all') {
+        filtered = filtered.filter(p => p.category === state.selectedCategory);
+    }
+
+    categoryTitle.textContent = state.selectedCategory === 'all'
+        ? 'All Discussions'
+        : `${categories.find(c => c.id === state.selectedCategory)?.name || 'Category'} Discussions`;
+
+    postCount.textContent = `${filtered.length} posts`;
+
+    if (filtered.length === 0) {
+        postsList.innerHTML = `<p class="no-results">No matching discussions found</p>`;
+        return;
+    }
+
+    postsList.innerHTML = filtered.map(post => `
         <div class="post-card" onclick="showPostDetail('${post.id}')">
             <div class="post-header">
                 <div class="avatar">${post.author.initials}</div>
                 <div class="post-body">
                     <h3 class="post-title">${post.title}</h3>
-                    <p class="post-content">${post.content}</p>
-                    <div class="post-tags">
-                        ${post.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-                    </div>
+                    <p class="post-content">${post.content.substring(0, 140)}${post.content.length > 140 ? '...' : ''}</p>
+                    <div class="post-tags">${post.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
                     <div class="post-meta">
                         <div class="post-author-info">
-                            <span>${post.author.name}</span>
-                            <span>•</span>
-                            <span>${post.timestamp}</span>
+                            <span>${post.author.name}</span> • <span>${post.timestamp}</span>
                         </div>
                         <div class="post-stats">
-                            <div class="stat">
-                                ${icons.eye}
-                                <span>${post.views}</span>
-                            </div>
-                            <div class="stat">
-                                ${icons.thumbsUp}
-                                <span>${post.likes}</span>
-                            </div>
-                            <div class="stat">
-                                ${icons.messageCircle}
-                                <span>${post.replies}</span>
-                            </div>
+                            <div class="stat">${icons.eye}<span>0</span></div>
+                            <div class="stat">${icons.thumbsUp}<span>${post.likes}</span></div>
+                            <div class="stat">${icons.messageCircle}<span>${post.replies}</span></div>
                         </div>
                     </div>
                 </div>
@@ -211,70 +187,129 @@ function renderPosts() {
     `).join('');
 }
 
-// Show Post Detail
+// Render Post Detail
 async function showPostDetail(postId) {
-    const question = await apiGet(`/questions/${postId}`);
-    if (!question) return;
+    // 1. Fetch the single question + author
+    const { data: question, error: qError } = await supabase
+        .from('questions')
+        .select(`
+            id,
+            title,
+            content,
+            category,
+            votes,
+            created_at,
+            author:users (username)
+        `)
+        .eq('id', postId)
+        .single();
 
+    if (qError || !question) {
+        console.error('Error loading question:', qError);
+        alert('Could not load this question');
+        return;
+    }
+
+    // 2. Fetch all answers for this question + their authors
+    const { data: answers, error: aError } = await supabase
+        .from('answers')
+        .select(`
+            id,
+            text,
+            votes,
+            created_at,
+            author:users (username)
+        `)
+        .eq('question_id', postId)
+        .order('created_at', { ascending: true });
+
+    if (aError) {
+        console.error('Error loading answers:', aError);
+        // continue anyway — show question even without answers
+    }
+
+    // 3. Build the state.selectedPost object
     state.selectedPost = {
-        id: question.id.toString(),
+        id: question.id,
         title: question.title,
-        content: question.content || "(content not available in list view)", // backend missing!
+        content: question.content || "(No content provided)",
         author: {
-            name: question.username || "Anonymous",
-            initials: (question.username || "A")[0].toUpperCase()
+            name: question.author?.username || "Anonymous",
+            initials: (question.author?.username || "A")[0].toUpperCase()
         },
         category: question.category,
         timestamp: formatTimestamp(question.created_at),
-        likes: question.votes,
-        replies: question.answers?.length || 0,
-        // tags: ...
+        likes: question.votes || 0,
+        replies: answers?.length || 0
     };
 
+    // 4. Hide list, show detail view
     postListView.style.display = 'none';
     postDetailView.style.display = 'block';
 
+    // 5. Build the HTML
     postDetailView.innerHTML = `
         <div class="post-detail">
-            <button class="back-btn" onclick="backToForum()">Back to Forum</button>
-            
+            <button class="back-btn" onclick="backToForum()">
+                ← Back to Forum
+            </button>
+
             <div class="detail-card">
-                <!-- same header, title, content as before -->
-                <div class="detail-header">...</div>
+                <div class="detail-header">
+                    <div class="avatar">${state.selectedPost.author.initials}</div>
+                    <div class="author-info">
+                        <span class="author-name">${state.selectedPost.author.name}</span>
+                        <span class="post-time"> • ${state.selectedPost.timestamp}</span>
+                        <span class="category-badge">${state.selectedPost.category}</span>
+                    </div>
+                </div>
+
                 <h1 class="detail-title">${state.selectedPost.title}</h1>
                 <p class="detail-content">${state.selectedPost.content}</p>
-                <!-- tags, actions -->
+
+                <div class="detail-actions">
+                    <button class="action-btn">
+                        ${icons.thumbsUp}
+                        <span>${state.selectedPost.likes}</span>
+                    </button>
+                    <button class="action-btn">
+                        ${icons.messageCircle}
+                        <span>${state.selectedPost.replies}</span>
+                    </button>
+                </div>
             </div>
-            
+
             <div class="detail-card replies-section">
-                <h3>${state.selectedPost.replies} Replies</h3>
+                <h3>${state.selectedPost.replies} ${state.selectedPost.replies === 1 ? 'Reply' : 'Replies'}</h3>
                 <div class="replies-list">
-                    ${(question.answers || []).map(ans => `
+                    ${answers?.map(ans => `
                         <div class="reply">
-                            <div class="avatar purple">${ans.answer_author?.[0]?.toUpperCase() || "?"}</div>
+                            <div class="avatar">${(ans.author?.username || "?")[0].toUpperCase()}</div>
                             <div class="reply-body">
                                 <div class="reply-header">
-                                    <span class="reply-author">${ans.answer_author || "Anonymous"}</span>
+                                    <span class="reply-author">${ans.author?.username || "Anonymous"}</span>
                                     <span>•</span>
                                     <span class="reply-time">${formatTimestamp(ans.created_at)}</span>
                                 </div>
                                 <p class="reply-content">${ans.text}</p>
-                                <!-- like button etc -->
                             </div>
                         </div>
-                    `).join('')}
+                    `).join('') || '<p>No replies yet.</p>'}
                 </div>
             </div>
-            
+
+            <!-- Reply form – add auth check later -->
             <div class="detail-card reply-form-section">
                 <h3>Add a Reply</h3>
-                <form class="reply-form" onsubmit="handleReply(event, ${postId})">
+                <form class="reply-form" onsubmit="handleReply(event, '${postId}')">
                     <textarea class="form-textarea" placeholder="Share your thoughts..." required></textarea>
                     <button type="submit" class="btn btn-primary">Post Reply</button>
                 </form>
             </div>
         </div>
     `;
+
+    window.scrollTo(0, 0);
 }
 
 // Back to Forum
@@ -306,7 +341,8 @@ async function handleReply(e, questionId) {
     }
 }
 
-// Modal Functions
+// MODAL FUNCTIONS
+// new post and auth modals
 function openNewPostModal() {
     newPostModal.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -318,39 +354,138 @@ function closeNewPostModal() {
     newPostForm.reset();
 }
 
+function openAuthModal(isSignup = false) {
+    const modal = document.getElementById('authModal');
+    const title = document.getElementById('authTitle');
+    const subtitle = document.getElementById('authSubtitle');
+    const usernameField = document.getElementById('usernameField');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    const switchText = document.getElementById('switchText');
+    const switchBtn = document.getElementById('switchModeBtn');
+    const message = document.getElementById('authMessage');
+
+    // Reset form & message
+    document.getElementById('authForm').reset();
+    message.textContent = '';
+    message.className = 'auth-message';
+
+    if (isSignup) {
+        title.textContent = 'Create Account';
+        subtitle.textContent = 'Join to post, reply, and vote';
+        usernameField.style.display = 'block';
+        submitBtn.textContent = 'Sign Up';
+        switchText.innerHTML = 'Already have an account? <button type="button" id="switchModeBtn">Sign In</button>';
+    } else {
+        title.textContent = 'Sign In';
+        subtitle.textContent = 'to post questions, reply, or vote';
+        usernameField.style.display = 'none';
+        submitBtn.textContent = 'Sign In';
+        switchText.innerHTML = 'Don\'t have an account? <button type="button" id="switchModeBtn">Sign Up</button>';
+    }
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Re-attach switch button listener
+    document.getElementById('switchModeBtn')?.addEventListener('click', () => {
+        openAuthModal(!isSignup);
+    });
+}
+
+function closeAuthModal() {
+    document.getElementById('authModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Handle form submission (sign in or sign up)
+document.getElementById('authForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const username = document.getElementById('authUsername').value.trim();
+    const isSignup = document.getElementById('authSubmitBtn').textContent.includes('Up');
+
+    const messageEl = document.getElementById('authMessage');
+
+    if (isSignup && !username) {
+        messageEl.textContent = 'Please choose a username';
+        messageEl.className = 'auth-message error';
+        return;
+    }
+
+    messageEl.textContent = 'Processing...';
+    messageEl.className = 'auth-message';
+
+    let result;
+
+    if (isSignup) {
+        result = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { username }
+            }
+        });
+    } else {
+        result = await supabase.auth.signInWithPassword({ email, password });
+    }
+
+    const { data, error } = result;
+
+    if (error) {
+        messageEl.textContent = error.message;
+        messageEl.className = 'auth-message error';
+        return;
+    }
+
+    messageEl.textContent = isSignup ? 'Check your email to confirm!' : 'Logged in successfully!';
+    messageEl.className = 'auth-message success';
+
+    if (!isSignup) {
+        state.currentUser = {
+            id: data.user.id,
+            email: data.user.email,
+            username: data.user.user_metadata?.username || 'User'
+        };
+        setTimeout(closeAuthModal, 1500);
+    }
+});
+
 // Handle New Post
 async function handleNewPost(e) {
     e.preventDefault();
-    
-    const title    = document.getElementById('postTitle').value;
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        openAuthModal();  // ← show login modal
+        return;
+    }
+
+
+    const title = document.getElementById('postTitle').value;
     const category = document.getElementById('postCategory').value;
-    const content  = document.getElementById('postContent').value;
-    const tags     = document.getElementById('postTags').value
-        .split(',').map(t => t.trim()).filter(Boolean);
+    const content = document.getElementById('postContent')?.value || '';
 
-    if (!title || !category) return alert("Title and category required");
-
-    const newQuestion = {
+    const { data, error } = await supabase
+    .from('questions')
+    .insert({
         title,
         category,
-        author_id: 1,           // ← HARDCODE for now! Replace with real user ID later
-        // content is missing in your backend table — add column if needed
-    };
+        content,
+        author_id: user.id
+    })
+    .select()
+    .single();
 
-    const result = await apiPost('/questions', newQuestion);
-    if (result && result.id) {
-        closeNewPostModal();
-        await loadQuestions();     // refresh list
-        renderPosts();
+    if (error) {
+    alert('Failed to post: ' + error.message);
+    } else {
+    alert('Question posted!');
+    loadQuestions();
     }
 }
-
-// Make functions globally available
-window.selectCategory = selectCategory;
-window.showPostDetail = showPostDetail;
-window.backToForum = backToForum;
-window.handleReply = handleReply;
-
 
 function formatTimestamp(isoString) {
     if (!isoString) return "recent";
@@ -401,57 +536,93 @@ async function setSort(newSort) {
     renderPosts();
 }
 
-// 2. Update your loadQuestions to use the current sort
 async function loadQuestions() {
-    const endpoint = `/questions?sort=${state.currentSort}`;
-    const questions = await apiGet(endpoint);
-    
-    if (!questions) {
-        console.warn("No questions returned");
+    let query = supabase
+        .from('questions')
+        .select(`
+            id,
+            title,
+            content,
+            category,
+            votes,
+            created_at,
+            author:users (username)
+        `);
+
+    // Sort
+    if (state.currentSort === 'likes') {
+        query = query.order('votes', { ascending: false });
+    } else {
+        query = query.order('created_at', { ascending: false });
+    }
+
+    // Search
+    if (state.searchQuery?.trim()) {
+        const term = `%${state.searchQuery.trim()}%`;
+        query = query.or(`title.ilike.${term},content.ilike.${term}`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error('Supabase load error:', error);
+        alert('Could not load questions');
         return;
     }
 
-    state.posts = questions.map(q => ({
-        id: q.id.toString(),
+    state.posts = data.map(q => ({
+        id: q.id,
         title: q.title,
-        content: q.content,
-        author: {
-            name: q.username || "User " + q.author_id,
-            initials: (q.username || "U")[0].toUpperCase()
-        },
+        content: q.content || "",
         category: q.category.toLowerCase(),
         timestamp: formatTimestamp(q.created_at),
-        replies: q.answer_count || 0,
         likes: q.votes || 0,
-        views: 0,
-        tags: [q.category.toLowerCase()],
-        raw: q
+        replies: 0,                 // ← TODO: count answers (see below)
+        author: {
+            name: q.author?.username || 'Anonymous',
+            initials: (q.author?.username || 'A')[0].toUpperCase()
+        },
+        tags: [q.category.toLowerCase()]
     }));
 
-    console.log(`Loaded ${state.posts.length} questions sorted by ${state.cutherrentSort}`);
-    
-    updateCategoryCountsFromPosts();
+    updateCategoryCounts();
     renderCategories();
+    renderPosts();
 }
+
+
+// Make functions globally available
+window.selectCategory = selectCategory;
+window.showPostDetail = showPostDetail;
+window.backToForum = backToForum;
+window.handleReply = handleReply;
+window.openAuthModal = openAuthModal;
+
 
 // Initialize App
 async function init() {
-    // Check for saved dark mode preference
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    if (savedDarkMode) {
+    // Dark mode
+    if (localStorage.getItem('darkMode') === 'true') {
         state.isDarkMode = true;
         document.body.classList.add('dark-mode');
     }
-    
-    await loadQuestions(); 
-    
-    renderCategories();
-    renderPosts();
+
+    // Load data
+    await loadQuestions();
     attachEventListeners();
-    setupSortButtons();
+
+    // Event listeners
+    darkModeBtn?.addEventListener('click', toggleDarkMode);
+    attachEventListeners();
+    setupSortButtons()
+
+    // Search
+    document.getElementById('searchInput')?.addEventListener('input', e => {
+        state.searchQuery = e.target.value;
+        renderPosts();
+    });
 }
 
-// Initialize app when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
