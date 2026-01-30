@@ -101,7 +101,6 @@ function closeMobileMenu() {
     mobileOverlay.classList.remove('active');
 }
 
-
 // Quick category counts from loaded data
 function updateCategoryCounts() {
     const counts = { all: state.posts.length };
