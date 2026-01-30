@@ -18,7 +18,7 @@ const state = {
     isMobileMenuOpen: false,
     currentSort: 'recent',
     searchQuery: '',
-    currentUser: null           // we'll add login later
+    currentUser: null           
 };
 
 //  4. Categories (static metadata)
@@ -40,7 +40,9 @@ const icons = {
     briefcase: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>',
     coffee: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>',
     eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
-    thumbsUp: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>',
+    
+    thumbsUp: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    
     messageCircle: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
     share: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>'
 };
@@ -128,10 +130,26 @@ function renderCategories() {
 
 // Select Category
 function selectCategory(categoryId) {
+    // Always reset detail view when changing category
+    if (state.selectedPost) {
+        backToForum();  // or directly reset state & visibility
+    }
+
     state.selectedCategory = categoryId;
+    state.selectedPost = null;  // extra safety
+
+    // Close mobile menu if open
     closeMobileMenu();
+
+    // Re-render everything
     renderCategories();
     renderPosts();
+
+    // Optional: scroll to top or update title
+    window.scrollTo(0, 0);
+    categoryTitle.textContent = categoryId === 'all'
+        ? 'All Discussions'
+        : `${categories.find(c => c.id === categoryId)?.name || 'Category'} Discussions`;
 }
 
 // Render Posts
@@ -172,14 +190,17 @@ function renderPosts() {
                     <p class="post-content">${post.content.substring(0, 140)}${post.content.length > 140 ? '...' : ''}</p>
                     <div class="post-tags">${post.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
                     <div class="post-meta">
-                        <div class="post-author-info">
-                            <span>${post.author.name}</span> • <span>${post.timestamp}</span>
-                        </div>
+                        
                         <div class="post-stats">
-                            <div class="stat">${icons.eye}<span>0</span></div>
+                            
                             <div class="stat">${icons.thumbsUp}<span>${post.likes}</span></div>
                             <div class="stat">${icons.messageCircle}<span>${post.replies}</span></div>
                         </div>
+
+                        <div class="post-author-info">
+                            <span>${post.author.name}</span> • <span>${post.timestamp}</span>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -268,11 +289,11 @@ async function showPostDetail(postId) {
                 <p class="detail-content">${state.selectedPost.content}</p>
 
                 <div class="detail-actions">
-                    <button class="action-btn">
+                    <button class="action-btn vote-btn" id="d1" data-id="${state.selectedPost.id}" data-type="question">
                         ${icons.thumbsUp}
-                        <span>${state.selectedPost.likes}</span>
+                        <span class="vote-count">${state.selectedPost.likes}</span>
                     </button>
-                    <button class="action-btn">
+                    <button class="action-btn" id="d2">
                         ${icons.messageCircle}
                         <span>${state.selectedPost.replies}</span>
                     </button>
@@ -292,6 +313,13 @@ async function showPostDetail(postId) {
                                     <span class="reply-time">${formatTimestamp(ans.created_at)}</span>
                                 </div>
                                 <p class="reply-content">${ans.text}</p>
+
+                                <button class="action-btn vote-btn small" 
+                                        onclick="toggleLike('${ans.id}', 'answer')">
+                                    ${icons.thumbsUp}
+                                    <span>${ans.votes || 0}</span>
+                                </button>
+
                             </div>
                         </div>
                     `).join('') || '<p>No replies yet.</p>'}
@@ -308,6 +336,15 @@ async function showPostDetail(postId) {
             </div>
         </div>
     `;
+    // Add this right after postDetailView.innerHTML = `...`
+postDetailView.querySelectorAll('.vote-btn').forEach(button => {
+    button.addEventListener('click', async () => {
+        const id = button.dataset.id;
+        const type = button.dataset.type;
+        // call your function (no window. needed)
+        await toggleLike(id, type);
+    });
+});
 
     window.scrollTo(0, 0);
 }
@@ -320,26 +357,45 @@ function backToForum() {
     window.scrollTo(0, 0);
 }
 
-// Handle Reply
+// Handle Reply – working version with Supabase
 async function handleReply(e, questionId) {
     e.preventDefault();
+
     const textarea = e.target.querySelector('textarea');
     const text = textarea.value.trim();
     if (!text) return;
 
-    const newAnswer = {
-        question_id: questionId,
-        author_id: 1,           // ← HARDCODE for now! Later use logged-in user ID
-        text
-    };
+    // Get current logged-in user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    const result = await apiPost('/answers', newAnswer);
-    if (result && result.id) {
-        textarea.value = '';
-        // Reload detail view
-        showPostDetail(questionId);
+    if (authError || !user) {
+        alert("You need to be signed in to post a reply");
+        openAuthModal();           // your existing login modal function
+        return;
     }
+
+    // Insert the new answer
+    const { data, error } = await supabase
+        .from('answers')
+        .insert({
+            question_id: questionId,
+            author_id: user.id,     // ← real user ID from auth
+            text: text
+        })
+        .select()                   // return the inserted row
+        .single();
+
+    if (error) {
+        console.error("Failed to post reply:", error);
+        alert("Could not post reply: " + (error.message || "unknown error"));
+        return;
+    }
+
+    // Success
+    textarea.value = '';           // clear the input
+    showPostDetail(questionId);    // reload the post to show new reply
 }
+
 
 // MODAL FUNCTIONS
 // new post and auth modals
@@ -482,8 +538,11 @@ async function handleNewPost(e) {
     if (error) {
     alert('Failed to post: ' + error.message);
     } else {
-    alert('Question posted!');
+    
+    
     loadQuestions();
+    closeNewPostModal()
+    alert('BRUHHH! Question posted ');
     }
 }
 
@@ -509,7 +568,7 @@ function formatTimestamp(isoString) {
     });
 }
 
-// 1. Add click handlers (you can put this in init() or at the bottom)
+// SORT BUTTONS
 function setupSortButtons() {
     const recentBtn = document.getElementById('sortRecentBtn');
     const hotBtn    = document.getElementById('sortHotBtn');
@@ -520,7 +579,6 @@ function setupSortButtons() {
     hotBtn.addEventListener('click', () => setSort('likes'));     // or 'hot'
 }
 
-// Helper to change sort + refresh
 async function setSort(newSort) {
     if (state.currentSort === newSort) return; // no change
 
@@ -535,6 +593,7 @@ async function setSort(newSort) {
     await loadQuestions();
     renderPosts();
 }
+
 
 async function loadQuestions() {
     let query = supabase
@@ -590,6 +649,44 @@ async function loadQuestions() {
     renderPosts();
 }
 
+// CHANGE THE USER ICON
+function updateAuthButton() {
+    const button = document.getElementById('authButton');
+    if (!button) return;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            // Signed in → show avatar with first letter
+            const username = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
+            const initial = username.charAt(0).toUpperCase();
+
+
+            button.innerHTML = `
+                <div class="avatar">${initial}</div>
+            `;
+
+            // Change what happens when clicked (example: open profile or menu)
+            button.onclick = () => {
+                
+                alert(`Signed in as ${username}`);
+            };
+
+            button.setAttribute('aria-label', `Signed in as ${username}`);
+        } else {
+            // Not signed in → restore original sign-in icon
+            button.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            `;
+
+            button.onclick = openAuthModal;
+            button.setAttribute('aria-label', 'Sign in');
+        }
+    });
+}
+
 
 // Make functions globally available
 window.selectCategory = selectCategory;
@@ -597,7 +694,7 @@ window.showPostDetail = showPostDetail;
 window.backToForum = backToForum;
 window.handleReply = handleReply;
 window.openAuthModal = openAuthModal;
-
+window.closeAuthModal = closeAuthModal;
 
 // Initialize App
 async function init() {
@@ -621,6 +718,13 @@ async function init() {
         state.searchQuery = e.target.value;
         renderPosts();
     });
+
+    // Show correct button on load
+    updateAuthButton();
+    // Listen for login/logout changes
+    supabase.auth.onAuthStateChange(() => {
+        updateAuthButton();
+    });
 }
 
 if (document.readyState === 'loading') {
@@ -628,3 +732,34 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
+// Expose toggleLike globally so inline onclick="..." can find it
+window.toggleLike = async function(itemId, itemType) {
+    console.log(`toggleLike clicked: ${itemType} ${itemId}`);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        alert("Please sign in to vote");
+        openAuthModal();
+        return;
+    }
+
+    const { error } = await supabase.rpc('increment_votes', {
+        p_id: itemId,
+        p_amount: 1,
+        p_type: itemType
+    });
+
+    if (error) {
+        console.error("Vote failed:", error);
+        // alert("Vote failed – likely a temporary Supabase issue. Try again in a minute.");
+        return;   // ← stops fake success
+    }
+
+    // Only runs if real success
+    console.log("Vote worked – refreshing");
+    if (itemType === 'question') {
+        showPostDetail(itemId);
+    } else if (state.selectedPost?.id) {
+        showPostDetail(state.selectedPost.id);
+    }
+};

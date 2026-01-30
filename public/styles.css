@@ -466,9 +466,9 @@ body {
 }
 
 .sort-btn.active {
-    background: var(--gradient-hilcoe, #2563eb);
+    background: var(--gradient-hilcoe, #5282ea);
     color: white;
-    border-color: var(--primary-color, #2563eb);
+    border-color: var(--primary-color, #6086d8);
 }
 
 /* dark mode */
@@ -478,10 +478,17 @@ body.dark-mode .sort-btn {
 }
 
 body.dark-mode .sort-btn.active {
-    background: var(--gradient-hilcoe);
+    background: var(--gradient-hilcoe, #5282ea);
     color: white;
 }
 
+#authButton {
+    transition: transform 0.2s;
+}
+
+#authButton:hover {
+    transform: scale(1.1);
+}
 
 .post-count {
     color: var(--text-secondary);
@@ -491,12 +498,16 @@ body.dark-mode .sort-btn.active {
 /* Posts List */
 .posts-list {
     height: 80vh;
-    max-width: 896px;
-    overflow-y: auto;
+    width: 100%;                    /* ← changed: use full available width */
+    max-width: 896px;               /* still good for desktop */
     margin: 0 auto;
+    padding: 0 1rem;                /* ← add small horizontal padding on mobile */
+    overflow-y: auto;
+    overflow-x: hidden;             /* ← prevents horizontal scrollbar */
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    box-sizing: border-box;         /* important */
 }
 
 .post-card {
@@ -507,8 +518,18 @@ body.dark-mode .sort-btn.active {
     cursor: pointer;
     transition: all var(--transition-normal);
     box-shadow: var(--shadow-card);
+
+    /* ── Add these lines ── */
+    width: 100%;                    /* take full width of container */
+    min-width: 0;                   /* ← critical: allows flex to shrink long content */
+    box-sizing: border-box;         /* padding doesn't increase width */
+    /* overflow: hidden;               hide anything trying to escape horizontally */
 }
 
+.post-title, .post-content, .post-author-info, .tag {
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
 .post-card:hover {
     box-shadow: var(--shadow-hover);
     border-color: rgba(37, 99, 235, 0.2);
@@ -618,7 +639,7 @@ body.dark-mode .sort-btn.active {
 }
 
 .stat:hover {
-    color: #2563eb;
+    /* color: rgb(152, 83, 83); */
 }
 
 .stat svg {
@@ -645,6 +666,10 @@ body.dark-mode .sort-btn.active {
     border-radius: var(--radius-md);
     margin-bottom: 1rem;
     transition: background-color var(--transition-fast);
+}
+
+#newPostBtn{
+    /* background-color: var(blue,--gradient-hilcoe); */
 }
 
 .back-btn:hover {
@@ -701,7 +726,7 @@ body.dark-mode .sort-btn.active {
 .category-badge {
     padding: 0.25rem 0.75rem;
     border-radius: var(--radius-md);
-    background: var(--gradient-blue);
+    background: var(--gradient-hilcoe);
     color: white;
     font-size: 0.875rem;
 }
@@ -745,6 +770,14 @@ body.dark-mode .sort-btn.active {
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
     flex-wrap: wrap;
+
+}
+#d1,#d2{
+    color: rgb(227, 129, 129);
+}
+#d1:hover{
+    background-color: rgb(227, 129, 129);
+    color: white;
 }
 
 .action-btn {
@@ -908,8 +941,8 @@ body.dark-mode .sort-btn.active {
 }
 
 .modal-close {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: var(--radius-md);
     border: none;
     background: none;
@@ -924,6 +957,25 @@ body.dark-mode .sort-btn.active {
 .modal-close:hover {
     background-color: var(--bg-input);
 }
+
+.close-modal{
+    width: 51px;
+    height: 51px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: none;
+    color: rgb(227, 129, 129);;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color var(--transition-fast);
+}
+.close-modal:hover{
+    background-color: rgb(227, 129, 129);
+    color: white;
+}
+
 
 /* sign in modal */
 .auth-modal-content h2 {
@@ -960,7 +1012,7 @@ body.dark-mode .sort-btn.active {
 .btn.btn-primary {
     width: 100%;
     padding: 0.9rem;
-    background: var(--primary-color, #2563eb);
+    background: var(--gradient-hilcoe , #2563eb);
     color: white;
     border: none;
     border-radius: var(--radius-md);
@@ -970,7 +1022,7 @@ body.dark-mode .sort-btn.active {
 }
 
 .btn.btn-primary:hover {
-    background: #1e40af;
+    background: var(--gradient-hilcoe , #2563eb);
 }
 
 .auth-switch {
@@ -984,6 +1036,15 @@ body.dark-mode .sort-btn.active {
     color: var(--primary-color);
     cursor: pointer;
     font-weight: 500;
+}
+
+#switchModeBtn{
+    color: rgb(89, 200, 237);
+}
+
+#switchModeBtn:hover{
+    color: rgb(89, 200, 237);
+    text-decoration: wavy;
 }
 
 .auth-message {
@@ -1052,8 +1113,8 @@ form {
 
 /* Scrollbar Styles */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
 }
 
 ::-webkit-scrollbar-track {
