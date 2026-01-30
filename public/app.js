@@ -565,8 +565,8 @@ async function loadQuestions() {
     const { data, error } = await query;
 
     if (error) {
-        console.error('Supabase load error:', error);
-        alert('Could not load questions');
+        console.error('Supabase error:', error.message, error.details, error.hint);
+        alert('Failed to load questions: ' + error.message);
         return;
     }
 
